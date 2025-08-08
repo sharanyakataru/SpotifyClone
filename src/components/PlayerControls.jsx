@@ -27,12 +27,16 @@ export default function PlayerControls() {
           },
         }
       );
+      
+      // FIXED: Use 'payload' instead of 'playerState'
       dispatch({
         type: reducerCases.SET_PLAYER_STATE,
-        playerState: !playerState,
+        payload: !playerState,  // Changed from playerState: !playerState
       });
     } catch (error) {
       console.error("Failed to change playback state:", error);
+      // Optionally, don't update state if API call fails
+      // This prevents UI state from getting out of sync with actual playback
     }
   };
 
@@ -49,7 +53,11 @@ export default function PlayerControls() {
         }
       );
 
-      dispatch({ type: reducerCases.SET_PLAYER_STATE, playerState: true });
+      // FIXED: Use 'payload' instead of 'playerState'
+      dispatch({ 
+        type: reducerCases.SET_PLAYER_STATE, 
+        payload: true  // Changed from playerState: true
+      });
 
       const response1 = await axios.get(
         "https://api.spotify.com/v1/me/player/currently-playing",
@@ -72,9 +80,18 @@ export default function PlayerControls() {
           artists: response1.data.item.artists.map((artist) => artist.name),
           image: imageUrl,
         };
-        dispatch({ type: reducerCases.SET_PLAYING, currentPlaying });
+        
+        // FIXED: Use 'payload' instead of 'currentPlaying'
+        dispatch({ 
+          type: reducerCases.SET_PLAYING, 
+          payload: currentPlaying  // Changed from currentPlaying
+        });
       } else {
-        dispatch({ type: reducerCases.SET_PLAYING, currentPlaying: null });
+        // FIXED: Use 'payload' instead of 'currentPlaying'
+        dispatch({ 
+          type: reducerCases.SET_PLAYING, 
+          payload: null  // Changed from currentPlaying: null
+        });
       }
     } catch (error) {
       console.error("Failed to change track or fetch current playing:", error);
