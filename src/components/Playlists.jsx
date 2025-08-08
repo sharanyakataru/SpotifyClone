@@ -22,6 +22,9 @@ export default function Playlists() {
           }
         );
         
+        console.log("Spotify response data: ", response.data);
+        console.log("Token in playlists component:", token);
+
         const { items } = response.data;
         const playlists = items.map(({ name, id }) => {
           return { name, id };
@@ -29,6 +32,8 @@ export default function Playlists() {
         
         // Fixed: Use payload instead of playlists
         dispatch({ type: reducerCases.SET_PLAYLISTS, payload: playlists });
+        console.log("Dispatched playlists:", playlists);
+
       } catch (error) {
         console.error("Error fetching playlists:", error);
         // Set empty array on error to prevent undefined

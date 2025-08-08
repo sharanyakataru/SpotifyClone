@@ -134,7 +134,7 @@ export default function Spotify() {
 const Container = styled.div`
   max-width: 100vw;
   max-height: 100vh;
-  overflow: hidden;
+  overflow: visible;
   display: grid;
   grid-template-rows: 85vh 15vh;
   .spotify__body {
