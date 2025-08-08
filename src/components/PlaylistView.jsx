@@ -9,7 +9,8 @@ export default function PlaylistView({
   playTrack, 
   msToMinutesAndSeconds,
   currentPlaying,
-  playerState 
+  playerState,
+  onClone
 }) {
   if (!selectedPlaylist) return null;
 
@@ -29,6 +30,9 @@ export default function PlaylistView({
         <div className="playlist-details">
           <span className="type">PLAYLIST</span>
           <h1 className="title">{selectedPlaylist.name}</h1>
+          <button onClick={onClone} style={{ marginTop: "1rem", padding: "0.5rem 1rem", cursor: "pointer" }}>
+            Clone Playlist
+          </button>
           {selectedPlaylist.description && (
             <p className="description">{selectedPlaylist.description}</p>
           )}

@@ -17,6 +17,8 @@ export default function Login() {
       "user-top-read",
       "playlist-read-private",
       "playlist-read-collaborative",
+      "playlist-modify-private",   
+      "playlist-modify-public", 
     ];
     window.location.href = `${api_uri}?client_id=${client_id}&redirect_uri=${redirect_uri}&scope=${scope.join(
       " "

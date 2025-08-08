@@ -5,6 +5,7 @@ import { useStateProvider } from "../utils/StateProvider";
 import { reducerCases } from "../utils/Constants";
 import SearchResults from "./SearchResults";
 import PlaylistView from "./PlaylistView";
+import { clonePlaylist } from "../utils/playlistUtils";
 
 export default function Body({ headerBackground: $headerBackground }) {
   const [{ 
@@ -137,6 +138,18 @@ export default function Body({ headerBackground: $headerBackground }) {
     }
   };
 
+  const handleClone = async () => {
+    if (!selectedPlaylist) return;
+
+    const result = await clonePlaylist(token, selectedPlaylist, dispatch, reducerCases);
+
+    if (result.success) {
+      alert("Playlist cloned successfully!");
+    } else {
+      alert("Failed to clone playlist");
+    }
+  };
+
   const selectPlaylist = (playlistId) => {
     dispatch({ type: reducerCases.SET_PLAYLIST_ID, payload: playlistId });
   };
@@ -146,6 +159,7 @@ export default function Body({ headerBackground: $headerBackground }) {
     const seconds = ((ms % 60000) / 1000).toFixed(0);
     return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
   };
+
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -181,6 +195,7 @@ export default function Body({ headerBackground: $headerBackground }) {
           msToMinutesAndSeconds={msToMinutesAndSeconds}
           currentPlaying={currentPlaying}
           playerState={playerState}
+          onClone = {handleClone}
         />
       ) : (
         <div className="home-content">
