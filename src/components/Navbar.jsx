@@ -1,22 +1,80 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 import { useStateProvider } from "../utils/StateProvider";
 import { FaSearch } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
+import { reducerCases } from "../utils/Constants";
+import axios from "axios";
 
 export default function Navbar({ navBackground }) {
-  const [{ userInfo }] = useStateProvider();
+  const [{ userInfo, token }, dispatch] = useStateProvider();
+  const [searchInput, setSearchInput] = useState("");
 
   // Safety check and data validation
-  const safeUserInfo = userInfo && typeof userInfo === 'object' && !userInfo.$$typeof ? userInfo : null;
+  const safeUserInfo = userInfo && typeof userInfo === 'object' && !userInfo.$typeof ? userInfo : null;
   const userName = safeUserInfo?.name && typeof safeUserInfo.name === 'string' ? safeUserInfo.name : "User";
   const userUrl = safeUserInfo?.userUrl && typeof safeUserInfo.userUrl === 'string' ? safeUserInfo.userUrl : null;
+
+  const handleSearch = async (query) => {
+    if (!query.trim()) {
+      dispatch({ type: reducerCases.CLEAR_SEARCH });
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track,artist,album,playlist&limit=20`,
+        {
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const searchResults = {
+        tracks: response.data.tracks?.items || [],
+        artists: response.data.artists?.items || [],
+        albums: response.data.albums?.items || [],
+        playlists: response.data.playlists?.items || [],
+      };
+
+      dispatch({ type: reducerCases.SET_SEARCH_RESULTS, payload: searchResults });
+      dispatch({ type: reducerCases.SET_SEARCH_QUERY, payload: query });
+    } catch (error) {
+      console.error("Search error:", error);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    
+    // Debounce search - search after user stops typing for 300ms
+    clearTimeout(window.searchTimeout);
+    window.searchTimeout = setTimeout(() => {
+      handleSearch(value);
+    }, 300);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      clearTimeout(window.searchTimeout);
+      handleSearch(searchInput);
+    }
+  };
 
   return (
     <Container $navBackground={navBackground}>
       <div className="search__bar">
         <FaSearch />
-        <input type="text" placeholder="Artists, songs, or podcasts" />
+        <input 
+          type="text" 
+          placeholder="Artists, songs, or podcasts" 
+          value={searchInput}
+          onChange={handleInputChange}
+          onKeyPress={handleKeyPress}
+        />
       </div>
       <div className="avatar">
         {userUrl ? (

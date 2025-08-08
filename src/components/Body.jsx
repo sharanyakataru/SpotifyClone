@@ -6,7 +6,7 @@ import { AiFillClockCircle } from "react-icons/ai";
 import { reducerCases } from "../utils/Constants";
 
 export default function Body({ headerBackground: $headerBackground }) {
-  const [{ token, selectedPlaylist, selectedPlaylistId }, dispatch] = useStateProvider();
+  const [{ token, selectedPlaylist, selectedPlaylistId, searchResults, searchQuery }, dispatch] = useStateProvider();
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -26,10 +26,12 @@ export default function Body({ headerBackground: $headerBackground }) {
             },
           }
         );
-        setFeaturedPlaylists(response.data.items);
+        // Filter out any null playlists
+        const validPlaylists = response.data.items.filter(playlist => playlist && playlist.id);
+        setFeaturedPlaylists(validPlaylists);
         
         // Also dispatch to global state for sidebar
-        dispatch({ type: reducerCases.SET_PLAYLISTS, payload: response.data.items });
+        dispatch({ type: reducerCases.SET_PLAYLISTS, payload: validPlaylists });
       } catch (error) {
         console.error("Error fetching playlists:", error);
         // Try a fallback - get a specific popular playlist
@@ -53,11 +55,11 @@ export default function Body({ headerBackground: $headerBackground }) {
       }
     };
 
-    // Only fetch playlists if no specific playlist is selected
-    if (!selectedPlaylistId) {
+    // Only fetch playlists if no specific playlist is selected and no search results
+    if (!selectedPlaylistId && !searchResults) {
       getUserPlaylists();
     }
-  }, [token, selectedPlaylistId, dispatch]);
+  }, [token, selectedPlaylistId, searchResults, dispatch]);
 
   // Fetch specific playlist when selectedPlaylistId is available
   useEffect(() => {
@@ -83,16 +85,18 @@ export default function Body({ headerBackground: $headerBackground }) {
             ? "" 
             : response.data.description || "",
           image: response.data.images?.[0]?.url || "",
-          tracks: response.data.tracks.items.map(({ track }) => ({
-            id: track.id,
-            name: track.name,
-            artists: track.artists.map((artist) => artist.name),
-            image: track.album.images?.[2]?.url || track.album.images?.[0]?.url || "",
-            duration: track.duration_ms,
-            album: track.album.name,
-            context_uri: track.album.uri,
-            track_number: track.track_number,
-          })),
+          tracks: response.data.tracks.items
+            .filter(item => item && item.track && item.track.id) // Filter out null tracks
+            .map(({ track }) => ({
+              id: track.id,
+              name: track.name,
+              artists: track.artists.map((artist) => artist.name),
+              image: track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "",
+              duration: track.duration_ms,
+              album: track.album?.name || "Unknown Album",
+              context_uri: track.album?.uri || "",
+              track_number: track.track_number || 1,
+            })),
         };
         
         dispatch({ type: reducerCases.SET_PLAYLIST, payload: selectedPlaylist });
@@ -166,12 +170,111 @@ export default function Body({ headerBackground: $headerBackground }) {
 
   return (
     <Container $headerBackground={$headerBackground}>
-      {selectedPlaylist ? (
+      {searchResults ? (
+        // Show search results
+        <div className="search-results">
+          <div className="search-header">
+            <h1>Search results for "{searchQuery}"</h1>
+          </div>
+          
+          {searchResults.tracks && searchResults.tracks.length > 0 && (
+            <div className="search-section">
+              <h2>Songs</h2>
+              <div className="tracks">
+                {searchResults.tracks
+                  .filter(track => track && track.id) // Filter out null tracks
+                  .slice(0, 5)
+                  .map((track, index) => (
+                    <div
+                      className="row"
+                      key={track.id}
+                      onClick={() => playTrack(
+                        track.id,
+                        track.name,
+                        track.artists?.map(artist => artist.name) || [],
+                        track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "",
+                        track.album?.uri || "",
+                        track.track_number || 1
+                      )}
+                    >
+                      <div className="col">
+                        <span>{index + 1}</span>
+                      </div>
+                      <div className="col detail">
+                        <div className="image">
+                          <img src={track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "/placeholder.png"} alt="track" />
+                        </div>
+                        <div className="info">
+                          <span className="name">{track.name}</span>
+                          <span>{track.artists?.map(artist => artist.name).join(", ") || "Unknown Artist"}</span>
+                        </div>
+                      </div>
+                      <div className="col">
+                        <span>{track.album?.name || "Unknown Album"}</span>
+                      </div>
+                      <div className="col">
+                        <span>{msToMinutesAndSeconds(track.duration_ms || 0)}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+          
+          {searchResults.artists && searchResults.artists.length > 0 && (
+            <div className="search-section">
+              <h2>Artists</h2>
+              <div className="artists-grid">
+                {searchResults.artists
+                  .filter(artist => artist && artist.id) // Filter out null artists
+                  .slice(0, 5)
+                  .map((artist) => (
+                    <div key={artist.id} className="artist-card">
+                      <div className="artist-image">
+                        <img src={artist.images?.[0]?.url || '/placeholder-artist.png'} alt={artist.name} />
+                      </div>
+                      <div className="artist-info">
+                        <h3>{artist.name}</h3>
+                        <p>Artist</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+          
+          {searchResults.playlists && searchResults.playlists.length > 0 && (
+            <div className="search-section">
+              <h2>Playlists</h2>
+              <div className="playlists-grid">
+                {searchResults.playlists
+                  .filter(playlist => playlist && playlist.id) // Filter out null playlists
+                  .slice(0, 5)
+                  .map((playlist) => (
+                    <div
+                      key={playlist.id}
+                      className="playlist-card"
+                      onClick={() => selectPlaylist(playlist.id)}
+                    >
+                      <div className="playlist-image">
+                        <img src={playlist.images?.[0]?.url || "/placeholder-playlist.png"} alt={playlist.name} />
+                      </div>
+                      <div className="playlist-info">
+                        <h3>{playlist.name}</h3>
+                        <p>{playlist.description || `${playlist.tracks?.total || 0} tracks`}</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : selectedPlaylist ? (
         // Show selected playlist
         <>
           <div className="playlist">
             <div className="image">
-              <img src={selectedPlaylist.image} alt="selected playlist" />
+              <img src={selectedPlaylist.image || "/placeholder-playlist.png"} alt="selected playlist" />
             </div>
             <div className="details">
               <span className="type">PLAYLIST</span>
@@ -187,19 +290,19 @@ export default function Body({ headerBackground: $headerBackground }) {
               <div className="col"><span><AiFillClockCircle /></span></div>
             </div>
             <div className="tracks">
-              {selectedPlaylist.tracks.map((
+              {selectedPlaylist.tracks?.map((
                 { id, name, artists, image, duration, album, context_uri, track_number },
                 index
               ) => (
                 <div
                   className="row"
                   key={id}
-                  onClick={() => playTrack(id, name, artists, image, context_uri, track_number)}
+                  onClick={() => playTrack(id, name, artists, image || "/placeholder-track.png", context_uri, track_number)}
                 >
                   <div className="col"><span>{index + 1}</span></div>
                   <div className="col detail">
                     <div className="image">
-                      <img src={image} alt="track" />
+                      <img src={image || "/placeholder-track.png"} alt="track" />
                     </div>
                     <div className="info">
                       <span className="name">{name}</span>
@@ -224,21 +327,23 @@ export default function Body({ headerBackground: $headerBackground }) {
             <div className="featured-section">
               <h2>Your Playlists</h2>
               <div className="playlists-grid">
-                {featuredPlaylists.map((playlist) => (
-                  <div
-                    key={playlist.id}
-                    className="playlist-card"
-                    onClick={() => selectPlaylist(playlist.id)}
-                  >
-                    <div className="playlist-image">
-                      <img src={playlist.images?.[0]?.url} alt={playlist.name} />
+                {featuredPlaylists
+                  .filter(playlist => playlist && playlist.id) // Filter out null playlists
+                  .map((playlist) => (
+                    <div
+                      key={playlist.id}
+                      className="playlist-card"
+                      onClick={() => selectPlaylist(playlist.id)}
+                    >
+                      <div className="playlist-image">
+                        <img src={playlist.images?.[0]?.url || "/placeholder-playlist.png"} alt={playlist.name} />
+                      </div>
+                      <div className="playlist-info">
+                        <h3>{playlist.name}</h3>
+                        <p>{playlist.description || `${playlist.tracks?.total || 0} tracks`}</p>
+                      </div>
                     </div>
-                    <div className="playlist-info">
-                      <h3>{playlist.name}</h3>
-                      <p>{playlist.description || `${playlist.tracks?.total || 0} tracks`}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           )}
@@ -249,6 +354,71 @@ export default function Body({ headerBackground: $headerBackground }) {
 }
 
 const Container = styled.div`
+  .search-results {
+    padding: 2rem;
+    color: white;
+    
+    .search-header {
+      margin-bottom: 2rem;
+      
+      h1 {
+        font-size: 2rem;
+        font-weight: bold;
+      }
+    }
+    
+    .search-section {
+      margin-bottom: 2rem;
+      
+      h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: white;
+      }
+      
+      .artists-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+        
+        .artist-card {
+          background-color: rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 1rem;
+          text-align: center;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+          
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+          }
+          
+          .artist-image {
+            img {
+              width: 100px;
+              height: 100px;
+              border-radius: 50%;
+              object-fit: cover;
+              margin-bottom: 0.5rem;
+            }
+          }
+          
+          .artist-info {
+            h3 {
+              font-size: 0.9rem;
+              margin-bottom: 0.2rem;
+            }
+            
+            p {
+              font-size: 0.8rem;
+              color: #b3b3b3;
+            }
+          }
+        }
+      }
+    }
+  }
+
   .loading {
     display: flex;
     justify-content: center;
