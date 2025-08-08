@@ -18,7 +18,7 @@ export default function Body({ headerBackground: $headerBackground }) {
       try {
         setLoading(true);
         const response = await axios.get(
-          "https://api.spotify.com/v1/me/playlists?limit=6",
+          "https://api.spotify.com/v1/me/playlists?limit=50",
           {
             headers: {
               Authorization: "Bearer " + token,
