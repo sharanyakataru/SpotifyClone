@@ -2,15 +2,25 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { useStateProvider } from "../utils/StateProvider";
-import { AiFillClockCircle } from "react-icons/ai";
 import { reducerCases } from "../utils/Constants";
+import SearchResults from "./SearchResults";
+import PlaylistView from "./PlaylistView";
 
 export default function Body({ headerBackground: $headerBackground }) {
-  const [{ token, selectedPlaylist, selectedPlaylistId, searchResults, searchQuery }, dispatch] = useStateProvider();
+  const [{ 
+    token, 
+    selectedPlaylist, 
+    selectedPlaylistId, 
+    searchResults, 
+    searchQuery,
+    currentPlaying,
+    playerState 
+  }, dispatch] = useStateProvider();
+  
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch user's own playlists instead of featured playlists (which might need special permissions)
+  // Fetch user's own playlists for home view
   useEffect(() => {
     const getUserPlaylists = async () => {
       if (!token) return;
@@ -26,30 +36,14 @@ export default function Body({ headerBackground: $headerBackground }) {
             },
           }
         );
-        // Filter out any null playlists
+        
         const validPlaylists = response.data.items.filter(playlist => playlist && playlist.id);
         setFeaturedPlaylists(validPlaylists);
         
-        // Also dispatch to global state for sidebar
         dispatch({ type: reducerCases.SET_PLAYLISTS, payload: validPlaylists });
       } catch (error) {
         console.error("Error fetching playlists:", error);
-        // Try a fallback - get a specific popular playlist
-        try {
-          const fallbackResponse = await axios.get(
-            "https://api.spotify.com/v1/playlists/37i9dQZF1DXcBWIGoYBM5M", // Today's Top Hits
-            {
-              headers: {
-                Authorization: "Bearer " + token,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-          setFeaturedPlaylists([fallbackResponse.data]);
-        } catch (fallbackError) {
-          console.error("Fallback also failed:", fallbackError);
-          setFeaturedPlaylists([]);
-        }
+        setFeaturedPlaylists([]);
       } finally {
         setLoading(false);
       }
@@ -86,7 +80,7 @@ export default function Body({ headerBackground: $headerBackground }) {
             : response.data.description || "",
           image: response.data.images?.[0]?.url || "",
           tracks: response.data.tracks.items
-            .filter(item => item && item.track && item.track.id) // Filter out null tracks
+            .filter(item => item && item.track && item.track.id)
             .map(({ track }) => ({
               id: track.id,
               name: track.name,
@@ -171,153 +165,24 @@ export default function Body({ headerBackground: $headerBackground }) {
   return (
     <Container $headerBackground={$headerBackground}>
       {searchResults ? (
-        // Show search results
-        <div className="search-results">
-          <div className="search-header">
-            <h1>Search results for "{searchQuery}"</h1>
-          </div>
-          
-          {searchResults.tracks && searchResults.tracks.length > 0 && (
-            <div className="search-section">
-              <h2>Songs</h2>
-              <div className="tracks">
-                {searchResults.tracks
-                  .filter(track => track && track.id) // Filter out null tracks
-                  .slice(0, 5)
-                  .map((track, index) => (
-                    <div
-                      className="row"
-                      key={track.id}
-                      onClick={() => playTrack(
-                        track.id,
-                        track.name,
-                        track.artists?.map(artist => artist.name) || [],
-                        track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "",
-                        track.album?.uri || "",
-                        track.track_number || 1
-                      )}
-                    >
-                      <div className="col">
-                        <span>{index + 1}</span>
-                      </div>
-                      <div className="col detail">
-                        <div className="image">
-                          <img src={track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || "/placeholder.png"} alt="track" />
-                        </div>
-                        <div className="info">
-                          <span className="name">{track.name}</span>
-                          <span>{track.artists?.map(artist => artist.name).join(", ") || "Unknown Artist"}</span>
-                        </div>
-                      </div>
-                      <div className="col">
-                        <span>{track.album?.name || "Unknown Album"}</span>
-                      </div>
-                      <div className="col">
-                        <span>{msToMinutesAndSeconds(track.duration_ms || 0)}</span>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-          
-          {searchResults.artists && searchResults.artists.length > 0 && (
-            <div className="search-section">
-              <h2>Artists</h2>
-              <div className="artists-grid">
-                {searchResults.artists
-                  .filter(artist => artist && artist.id) // Filter out null artists
-                  .slice(0, 5)
-                  .map((artist) => (
-                    <div key={artist.id} className="artist-card">
-                      <div className="artist-image">
-                        <img src={artist.images?.[0]?.url || '/placeholder-artist.png'} alt={artist.name} />
-                      </div>
-                      <div className="artist-info">
-                        <h3>{artist.name}</h3>
-                        <p>Artist</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-          
-          {searchResults.playlists && searchResults.playlists.length > 0 && (
-            <div className="search-section">
-              <h2>Playlists</h2>
-              <div className="playlists-grid">
-                {searchResults.playlists
-                  .filter(playlist => playlist && playlist.id) // Filter out null playlists
-                  .slice(0, 5)
-                  .map((playlist) => (
-                    <div
-                      key={playlist.id}
-                      className="playlist-card"
-                      onClick={() => selectPlaylist(playlist.id)}
-                    >
-                      <div className="playlist-image">
-                        <img src={playlist.images?.[0]?.url || "/placeholder-playlist.png"} alt={playlist.name} />
-                      </div>
-                      <div className="playlist-info">
-                        <h3>{playlist.name}</h3>
-                        <p>{playlist.description || `${playlist.tracks?.total || 0} tracks`}</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <SearchResults
+          searchResults={searchResults}
+          searchQuery={searchQuery}
+          playTrack={playTrack}
+          selectPlaylist={selectPlaylist}
+          msToMinutesAndSeconds={msToMinutesAndSeconds}
+          currentPlaying={currentPlaying}
+          playerState={playerState}
+        />
       ) : selectedPlaylist ? (
-        // Show selected playlist
-        <>
-          <div className="playlist">
-            <div className="image">
-              <img src={selectedPlaylist.image || "/placeholder-playlist.png"} alt="selected playlist" />
-            </div>
-            <div className="details">
-              <span className="type">PLAYLIST</span>
-              <h1 className="title">{selectedPlaylist.name}</h1>
-              <p className="description">{selectedPlaylist.description}</p>
-            </div>
-          </div>
-          <div className="list">
-            <div className="header-row">
-              <div className="col"><span>#</span></div>
-              <div className="col"><span>TITLE</span></div>
-              <div className="col"><span>ALBUM</span></div>
-              <div className="col"><span><AiFillClockCircle /></span></div>
-            </div>
-            <div className="tracks">
-              {selectedPlaylist.tracks?.map((
-                { id, name, artists, image, duration, album, context_uri, track_number },
-                index
-              ) => (
-                <div
-                  className="row"
-                  key={id}
-                  onClick={() => playTrack(id, name, artists, image || "/placeholder-track.png", context_uri, track_number)}
-                >
-                  <div className="col"><span>{index + 1}</span></div>
-                  <div className="col detail">
-                    <div className="image">
-                      <img src={image || "/placeholder-track.png"} alt="track" />
-                    </div>
-                    <div className="info">
-                      <span className="name">{name}</span>
-                      <span>{Array.isArray(artists) ? artists.join(", ") : artists}</span>
-                    </div>
-                  </div>
-                  <div className="col"><span>{album}</span></div>
-                  <div className="col"><span>{msToMinutesAndSeconds(duration)}</span></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
+        <PlaylistView
+          selectedPlaylist={selectedPlaylist}
+          playTrack={playTrack}
+          msToMinutesAndSeconds={msToMinutesAndSeconds}
+          currentPlaying={currentPlaying}
+          playerState={playerState}
+        />
       ) : (
-        // Show home view with featured playlists
         <div className="home-content">
           <div className="greeting">
             <h1>{getGreeting()}</h1>
@@ -328,7 +193,7 @@ export default function Body({ headerBackground: $headerBackground }) {
               <h2>Your Playlists</h2>
               <div className="playlists-grid">
                 {featuredPlaylists
-                  .filter(playlist => playlist && playlist.id) // Filter out null playlists
+                  .filter(playlist => playlist && playlist.id)
                   .map((playlist) => (
                     <div
                       key={playlist.id}
@@ -336,7 +201,10 @@ export default function Body({ headerBackground: $headerBackground }) {
                       onClick={() => selectPlaylist(playlist.id)}
                     >
                       <div className="playlist-image">
-                        <img src={playlist.images?.[0]?.url || "/placeholder-playlist.png"} alt={playlist.name} />
+                        <img 
+                          src={playlist.images?.[0]?.url || "/placeholder-playlist.png"} 
+                          alt={playlist.name} 
+                        />
                       </div>
                       <div className="playlist-info">
                         <h3>{playlist.name}</h3>
@@ -354,71 +222,6 @@ export default function Body({ headerBackground: $headerBackground }) {
 }
 
 const Container = styled.div`
-  .search-results {
-    padding: 2rem;
-    color: white;
-    
-    .search-header {
-      margin-bottom: 2rem;
-      
-      h1 {
-        font-size: 2rem;
-        font-weight: bold;
-      }
-    }
-    
-    .search-section {
-      margin-bottom: 2rem;
-      
-      h2 {
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
-        color: white;
-      }
-      
-      .artists-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 1rem;
-        
-        .artist-card {
-          background-color: rgba(255, 255, 255, 0.1);
-          border-radius: 8px;
-          padding: 1rem;
-          text-align: center;
-          cursor: pointer;
-          transition: background-color 0.3s ease;
-          
-          &:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-          }
-          
-          .artist-image {
-            img {
-              width: 100px;
-              height: 100px;
-              border-radius: 50%;
-              object-fit: cover;
-              margin-bottom: 0.5rem;
-            }
-          }
-          
-          .artist-info {
-            h3 {
-              font-size: 0.9rem;
-              margin-bottom: 0.2rem;
-            }
-            
-            p {
-              font-size: 0.8rem;
-              color: #b3b3b3;
-            }
-          }
-        }
-      }
-    }
-  }
-
   .loading {
     display: flex;
     justify-content: center;
@@ -492,76 +295,6 @@ const Container = styled.div`
               -webkit-line-clamp: 2;
               -webkit-box-orient: vertical;
             }
-          }
-        }
-      }
-    }
-  }
-
-  .playlist {
-    margin: 0 2rem;
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-    .image {
-      img {
-        height: 15rem;
-        box-shadow: rgba(0, 0, 0, 0.25) 0px 25px 50px -12px;
-      }
-    }
-    .details {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      color: #e0dede;
-      .title {
-        color: white;
-        font-size: 4rem;
-      }
-    }
-  }
-  
-  .list {
-    .header-row {
-      display: grid;
-      grid-template-columns: 0.3fr 3fr 2fr 0.1fr;
-      margin: 1rem 0 0 0;
-      color: #dddcdc;
-      position: sticky;
-      top: 15vh;
-      padding: 1rem 3rem;
-      transition: 0.3s ease-in-out;
-      background-color: ${({ $headerBackground }) =>
-        $headerBackground ? "#000000dc" : "none"};
-    }
-    .tracks {
-      margin: 0 2rem;
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 5rem;
-      .row {
-        padding: 0.5rem 1rem;
-        display: grid;
-        grid-template-columns: 0.3fr 3.1fr 2fr 0.1fr;
-        cursor: pointer;
-        &:hover {
-          background-color: rgba(0, 0, 0, 0.7);
-        }
-        .col {
-          display: flex;
-          align-items: center;
-          color: #dddcdc;
-          img {
-            height: 40px;
-            width: 40px;
-          }
-        }
-        .detail {
-          display: flex;
-          gap: 1rem;
-          .info {
-            display: flex;
-            flex-direction: column;
           }
         }
       }
