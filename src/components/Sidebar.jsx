@@ -3,8 +3,33 @@ import styled from "styled-components";
 import { MdHomeFilled, MdSearch } from "react-icons/md";
 import { IoLibrary } from "react-icons/io5";
 import Playlists from "./Playlists";
+import { useStateProvider } from "../utils/StateProvider";
+import { reducerCases } from "../utils/Constants";
 
 export default function Sidebar() {
+  const [{ }, dispatch] = useStateProvider();
+
+  const handleHomeClick = () => {
+    // Clear selected playlist and search to go back to home view
+    dispatch({ type: reducerCases.SET_PLAYLIST_ID, payload: null });
+    dispatch({ type: reducerCases.CLEAR_SEARCH });
+  };
+
+  const handleSearchClick = () => {
+    // You can implement search functionality here
+    // For now, let's just clear playlist selection
+    dispatch({ type: reducerCases.SET_PLAYLIST_ID, payload: null });
+    // You might want to focus a search input or open a search modal
+    console.log("Search clicked - implement search functionality");
+  };
+
+  const handleLibraryClick = () => {
+    // Go to library view (similar to home but maybe with different layout)
+    dispatch({ type: reducerCases.SET_PLAYLIST_ID, payload: null });
+    dispatch({ type: reducerCases.CLEAR_SEARCH });
+    console.log("Library clicked - showing user's library");
+  };
+
   return (
     <Container>
       <div className="top__links">
@@ -15,15 +40,15 @@ export default function Sidebar() {
           />
         </div>
         <ul>
-          <li>
+          <li onClick={handleHomeClick}>
             <MdHomeFilled />
             <span>Home</span>
           </li>
-          <li>
+          <li onClick={handleSearchClick}>
             <MdSearch />
             <span>Search</span>
           </li>
-          <li>
+          <li onClick={handleLibraryClick}>
             <IoLibrary />
             <span>Your Library</span>
           </li>
