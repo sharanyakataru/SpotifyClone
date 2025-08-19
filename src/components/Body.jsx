@@ -5,11 +5,12 @@ import { useStateProvider } from "../utils/StateProvider";
 import { reducerCases } from "../utils/Constants";
 import SearchResults from "./SearchResults";
 import PlaylistView from "./PlaylistView";
-import { clonePlaylist } from "../utils/playlistUtils";
+import { clonePlaylist, addTracksToPlaylist, removeTracksFromPlaylist } from "../utils/playlistUtils";
 
 export default function Body({ headerBackground: $headerBackground }) {
   const [{ 
     token, 
+    userInfo,
     selectedPlaylist, 
     selectedPlaylistId, 
     searchResults, 
@@ -56,6 +57,27 @@ export default function Body({ headerBackground: $headerBackground }) {
     }
   }, [token, selectedPlaylistId, searchResults, dispatch]);
 
+
+  //Fetch user identity 
+      useEffect(() => {
+      if (!token) return;
+
+      const fetchUserInfo = async () => {
+        try {
+          const res = await axios.get("https://api.spotify.com/v1/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          dispatch({ type: reducerCases.SET_USER, payload: res.data });
+        } catch (error) {
+          console.error("Failed to fetch user info", error);
+        }
+      };
+
+      fetchUserInfo();
+    }, [token, dispatch]);
+
   // Fetch specific playlist when selectedPlaylistId is available
   useEffect(() => {
     const getInitialPlaylist = async () => {
@@ -80,6 +102,7 @@ export default function Body({ headerBackground: $headerBackground }) {
             ? "" 
             : response.data.description || "",
           image: response.data.images?.[0]?.url || "",
+          ownerId: response.data.owner?.id,
           tracks: response.data.tracks.items
             .filter(item => item && item.track && item.track.id)
             .map(({ track }) => ({
@@ -138,6 +161,9 @@ export default function Body({ headerBackground: $headerBackground }) {
     }
   };
 
+  const isOwnedPlaylist = userInfo?.id === selectedPlaylist?.ownerId;
+
+
   const handleClone = async () => {
     if (!selectedPlaylist) return;
 
@@ -149,6 +175,51 @@ export default function Body({ headerBackground: $headerBackground }) {
       alert("Failed to clone playlist");
     }
   };
+
+  const handleAddTrack = async (track) => {
+    if (!token || !selectedPlaylist) return;
+
+    try {
+      const trackUris = [`spotify:track:${track.id}`];
+      const result = await addTracksToPlaylist(token, selectedPlaylist.id, trackUris);
+      
+      if (result.success) {
+        alert(`Added "${track.name}" to playlist!`);
+        // Optionally refetch playlist or update state to reflect changes
+      } else {
+        alert("Failed to add track.");
+      }
+    } catch (error) {
+      console.error("Error adding track:", error);
+    }
+  };
+
+  const handleRemoveTrack = async (track) => {
+    if (!token || !selectedPlaylist) return;
+    
+    try {
+      const trackUris = [`spotify:track:${track.id}`];
+      const result = await removeTracksFromPlaylist(token, selectedPlaylist.id, trackUris);
+
+      if (result) {
+        alert(`Removed "${track.name}" from playlist!`);
+
+        // Update local playlist state by filtering out removed track
+        const updatedTracks = selectedPlaylist.tracks.filter(t => t.id !== track.id);
+
+        // Create new playlist object with updated tracks
+        const updatedPlaylist = { ...selectedPlaylist, tracks: updatedTracks };
+
+        // Dispatch updated playlist to global state
+        dispatch({ type: reducerCases.SET_PLAYLIST, payload: updatedPlaylist });
+      } else {
+        alert("Failed to remove track.");
+      }
+    } catch (error) {
+      console.error("Error removing track:", error);
+    }
+  };
+
 
   const selectPlaylist = (playlistId) => {
     dispatch({ type: reducerCases.SET_PLAYLIST_ID, payload: playlistId });
@@ -196,6 +267,9 @@ export default function Body({ headerBackground: $headerBackground }) {
           currentPlaying={currentPlaying}
           playerState={playerState}
           onClone = {handleClone}
+          isOwnedPlaylist={isOwnedPlaylist}
+          onAddTrack={handleAddTrack}         // pass add function
+          onRemoveTrack={handleRemoveTrack} 
         />
       ) : (
         <div className="home-content">

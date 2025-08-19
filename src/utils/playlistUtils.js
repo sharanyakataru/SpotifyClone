@@ -89,7 +89,17 @@ export async function removeTracksFromPlaylist(token, playlistId, trackUris) {
         "Content-Type": "application/json",
       },
       data: {
-        tracks: trackUris.map(uri => ({ uri })),
+        tracks: trackUris.map((item) => {
+          // If item is string, return { uri: item }
+          // If item is object with a uri string, return { uri: item.uri }
+          if (typeof item === "string") {
+            return { uri: item };
+          } else if (item && typeof item === "object" && typeof item.uri === "string") {
+            return { uri: item.uri };
+          } else {
+            throw new Error("Invalid track URI format in removeTracksFromPlaylist");
+          }
+        }),
       },
     });
     return response.data; // snapshot_id

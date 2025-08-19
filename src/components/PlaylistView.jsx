@@ -10,7 +10,10 @@ export default function PlaylistView({
   msToMinutesAndSeconds,
   currentPlaying,
   playerState,
-  onClone
+  onClone,
+  isOwnedPlaylist,
+  onAddTrack,
+  onRemoveTrack,
 }) {
   if (!selectedPlaylist) return null;
 
@@ -61,7 +64,8 @@ export default function PlaylistView({
           <div className="col duration">
             <AiFillClockCircle />
           </div>
-        </div>
+          {(isOwnedPlaylist || onAddTrack) && <div className="col actions">Actions</div>}        
+          </div>
         
         <div className="tracks">
           {selectedPlaylist.tracks?.map((track, index) => {
@@ -130,6 +134,24 @@ export default function PlaylistView({
                   <span className="duration-text">
                     {msToMinutesAndSeconds(duration)}
                   </span>
+                </div>
+
+                <div className="col actions" onClick={e => e.stopPropagation()}>
+                  {isOwnedPlaylist ? (
+                    <button 
+                      className="remove-btn" 
+                      onClick={() => onRemoveTrack && onRemoveTrack(track)}
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button 
+                      className="add-btn" 
+                      onClick={() => onAddTrack && onAddTrack(track)}
+                    >
+                      Add
+                    </button>
+                  )}
                 </div>
               </div>
             );
